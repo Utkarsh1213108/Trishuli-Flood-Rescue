@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css'
 type AlertLevel = 'CRITICAL' | 'HIGH' | 'MODERATE'
 
 type MapAlert = {
-  id: number
+  id: number | string
   level: AlertLevel
   title: string
   location: string

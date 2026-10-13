@@ -2,11 +2,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import './App.css'
 import FloodMap from './FloodMap'
+import { supabase } from './lib/supabase'
 
 type AlertLevel = 'CRITICAL' | 'HIGH' | 'MODERATE'
 
 type AlertItem = {
-  id: number
+  id: number | string
   level: AlertLevel
   title: string
   location: string
@@ -114,22 +115,61 @@ const shelters = [
 
 function App() {
   const [page, setPage] = useState<PageId>('Overview')
-  const [alerts, setAlerts] = useState<AlertItem[]>(() => {
-  try {
-    const saved = localStorage.getItem('trishuli-flood-alerts')
-    return saved ? (JSON.parse(saved) as AlertItem[]) : initialAlerts
-  } catch {
-    return initialAlerts
-  }
-})
+  const [alerts, setAlerts] = useState<AlertItem[]>(initialAlerts)
 
 useEffect(() => {
-  try {
-    localStorage.setItem('trishuli-flood-alerts', JSON.stringify(alerts))
-  } catch (error) {
-    console.error('Could not save flood alerts:', error)
+  let isActive = true
+
+  async function loadIncidents() {
+    const { data, error } = await supabase
+      .from('incidents')
+      .select(
+        'id, title, location, severity, status, latitude, longitude, created_at'
+      )
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Could not load incidents from Supabase:', error)
+      return
+    }
+
+    const savedAlerts: AlertItem[] = (data ?? [])
+      .filter(
+        (incident) =>
+          typeof incident.latitude === 'number' &&
+          typeof incident.longitude === 'number'
+      )
+      .map((incident) => {
+        const severity = String(incident.severity).toUpperCase()
+
+        return {
+          id: incident.id,
+          level:
+            severity === 'CRITICAL'
+              ? 'CRITICAL'
+              : severity === 'HIGH'
+                ? 'HIGH'
+                : 'MODERATE',
+          title: incident.title,
+          location: incident.location,
+          time: new Date(incident.created_at).toLocaleString(),
+          status: incident.status,
+          lat: incident.latitude,
+          lng: incident.longitude,
+        }
+      })
+
+    if (isActive) {
+      setAlerts([...savedAlerts, ...initialAlerts])
+    }
   }
-}, [alerts])
+
+  void loadIncidents()
+
+  return () => {
+    isActive = false
+  }
+}, [])
   const [reportOpen, setReportOpen] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -201,7 +241,7 @@ useEffect(() => {
     setNotice('Situation report exported as a CSV file.')
   }
 
-  function submitReport(event: FormEvent<HTMLFormElement>) {
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const lat = Number(reportLat)
@@ -219,16 +259,50 @@ useEffect(() => {
       return
     }
 
-    const newAlert: AlertItem = {
-      id: Math.max(0, ...alerts.map((alert) => alert.id)) + 1,
-      level: reportLevel,
-      title: reportTitle.trim(),
-      location: reportLocation.trim(),
-      time: 'Just now',
-      status: 'New report',
-      lat,
-      lng,
-    }
+          const databaseSeverity =
+        reportLevel === 'CRITICAL'
+          ? 'Critical'
+          : reportLevel === 'HIGH'
+            ? 'High'
+            : 'Moderate'
+
+      const { data, error } = await supabase
+        .from('incidents')
+        .insert({
+          title: reportTitle.trim(),
+          location: reportLocation.trim(),
+          severity: databaseSeverity,
+          details: reportDetails.trim() || null,
+          latitude: lat,
+          longitude: lng,
+          status: 'New report',
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Failed to save incident:', error)
+        setNotice('Could not save the incident. Please try again.')
+        return
+      }
+
+      const newAlert: AlertItem = {
+        id: data.id,
+        level: reportLevel,
+        title: data.title,
+        location: data.location,
+        time: 'Just now',
+        status: data.status,
+        lat: data.latitude ?? lat,
+        lng: data.longitude ?? lng,
+      }
+
+      setAlerts((current) => [newAlert, ...current])
+      setReportOpen(false)
+      setPage('Emergency Alerts')
+      setNotice(
+        'Incident saved to the database. It has not been sent to emergency services.'
+      )
 
     setAlerts((current) => [newAlert, ...current])
     setReportOpen(false)
