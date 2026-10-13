@@ -1,0 +1,29 @@
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Python temporary files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local operating-system and log files
+.DS_Store
+*.log
+npm-debug.log*
+
+# Local deployment settings
+.vercel/
+
+# Private keys
+*.pem
+*.key
