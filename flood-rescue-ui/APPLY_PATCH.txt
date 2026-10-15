@@ -1,0 +1,16 @@
+TRISHULI FLOOD RESCUE — FRONTEND FEATURE PATCH
+
+Extract this ZIP at the root of your existing Trishuli - Flood - Rescue project. It updates only:
+- flood-rescue-ui/src/App.tsx
+- flood-rescue-ui/src/App.css
+- flood-rescue-ui/README.md
+- flood-rescue-ui/.env.example
+
+It does not include or overwrite backend/main.py, any .env file, package.json, package-lock.json, or FloodMap.tsx.
+
+After extraction, run from the flood-rescue-ui folder:
+  npm run build
+
+Then refresh the app and test Load demo scenario, Clear demo, Download demo situation report, and the emergency-alert search/severity filter.
+
+Note: The source audit supplied with Claude's ZIP says the satellite/raster backend is absent from that ZIP and the satellite analysis remains unresolved. Do not describe the illustrative incidents as live data.
